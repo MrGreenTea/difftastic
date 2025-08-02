@@ -94,6 +94,7 @@ extern "C" {
     fn tree_sitter_smali() -> ts::Language;
     fn tree_sitter_scss() -> ts::Language;
     fn tree_sitter_solidity() -> ts::Language;
+    fn tree_sitter_svelte() -> ts::Language;
     fn tree_sitter_sql() -> ts::Language;
     fn tree_sitter_vhdl() -> ts::Language;
 }
@@ -1013,6 +1014,54 @@ pub(crate) fn from_language(language: guess::Language) -> TreeSitterConfig {
                 )
                 .unwrap(),
                 sub_languages: vec![],
+            }
+        }
+        Svelte => {
+            let language = unsafe { tree_sitter_svelte() };
+            TreeSitterConfig {
+                language: language.clone(),
+                atom_nodes: vec!["string"].into_iter().collect(),
+                delimiter_tokens: vec![("{", "}"), ("[", "]"), ("<", ">")],
+                highlight_query: ts::Query::new(
+                    &language,
+                    include_str!(
+                        "../../vendored_parsers/tree-sitter-svelte/queries/highlights.scm"
+                    ),
+                )
+                .unwrap(),
+                sub_languages: vec![
+                    TreeSitterSubLanguage {
+                        query: ts::Query::new(&language, "(script_element (raw_text) @contents)")
+                            .unwrap(),
+                        parse_as: JavaScript,
+                    },
+                    TreeSitterSubLanguage {
+                        query: ts::Query::new(
+                            &language,
+                            r#"((script_element
+                                (start_tag
+                                  (attribute
+                                    (attribute_name) @_attr
+                                    (quoted_attribute_value
+                                      (attribute_value) @_lang)))
+                                (raw_text) @contents)
+                                (#eq? @_attr "lang")
+                                (#any-of? @_lang "ts" "typescript"))"#,
+                        )
+                        .unwrap(),
+                        parse_as: TypeScript,
+                    },
+                    TreeSitterSubLanguage {
+                        query: ts::Query::new(&language, "(style_element (raw_text) @contents)")
+                            .unwrap(),
+                        parse_as: Css,
+                    },
+                    TreeSitterSubLanguage {
+                        query: ts::Query::new(&language, "(expression (svelte_raw_text) @contents)")
+                            .unwrap(),
+                        parse_as: JavaScript,
+                    },
+                ],
             }
         }
         Swift => {
