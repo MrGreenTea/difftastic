@@ -16,7 +16,7 @@ const AttachmentInput: FC<AttachmentInputProps> = ({
         name={name}
         isInvalid={isInvalid}
       >
-        <Button variant="outline-secondary" className="my-1">
+        <Button variant="outline-secondary" className="mx-2 my-1">
           <FontAwesomeIcon icon={faPlus} /> Adicionar arquivos{" "}
         </Button>
       </DropZone>{" "}
