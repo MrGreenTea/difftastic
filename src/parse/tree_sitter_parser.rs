@@ -1030,25 +1030,11 @@ pub(crate) fn from_language(language: guess::Language) -> TreeSitterConfig {
                 )
                 .unwrap(),
                 sub_languages: vec![
+                    // Use TypeScript parser for all script elements
+                    // TypeScript is a superset of JavaScript, so this handles both
                     TreeSitterSubLanguage {
                         query: ts::Query::new(&language, "(script_element (raw_text) @contents)")
                             .unwrap(),
-                        parse_as: JavaScript,
-                    },
-                    TreeSitterSubLanguage {
-                        query: ts::Query::new(
-                            &language,
-                            r#"((script_element
-                                (start_tag
-                                  (attribute
-                                    (attribute_name) @_attr
-                                    (quoted_attribute_value
-                                      (attribute_value) @_lang)))
-                                (raw_text) @contents)
-                                (#eq? @_attr "lang")
-                                (#any-of? @_lang "ts" "typescript"))"#,
-                        )
-                        .unwrap(),
                         parse_as: TypeScript,
                     },
                     TreeSitterSubLanguage {
@@ -1057,8 +1043,11 @@ pub(crate) fn from_language(language: guess::Language) -> TreeSitterConfig {
                         parse_as: Css,
                     },
                     TreeSitterSubLanguage {
-                        query: ts::Query::new(&language, "(expression (svelte_raw_text) @contents)")
-                            .unwrap(),
+                        query: ts::Query::new(
+                            &language,
+                            "(expression (svelte_raw_text) @contents)",
+                        )
+                        .unwrap(),
                         parse_as: JavaScript,
                     },
                 ],

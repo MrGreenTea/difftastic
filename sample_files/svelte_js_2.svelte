@@ -1,8 +1,9 @@
 <script>
+  // initialize state to 0
   let value = $state(0);
 </script>
 
-<span>
+<span class="text bg-green-500 text-red-300">
   Next value: {value + 1}
 </span>
 

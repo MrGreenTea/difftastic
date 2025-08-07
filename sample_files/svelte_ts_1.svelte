@@ -1,5 +1,5 @@
-<script>
-  let value = $state(1);
+<script lang="ts">
+  let value: number = $state(1);
 </script>
 
 <button
