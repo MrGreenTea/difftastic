@@ -210,6 +210,14 @@ pub(crate) fn from_language(language: guess::Language) -> TreeSitterConfig {
                             .unwrap(),
                         parse_as: Css,
                     },
+                    TreeSitterSubLanguage {
+                        query: ts::Query::new(
+                            &language,
+                            "(style_element\n  (start_tag\n    (attribute\n      (attribute_name) @_lang_attr\n      (quoted_attribute_value\n        (attribute_value) @_lang_value)))\n  (raw_text) @contents\n  (#eq? @_lang_attr \"lang\")\n  (#eq? @_lang_value \"scss\"))",
+                        )
+                        .unwrap(),
+                        parse_as: Scss,
+                    },
                 ],
             }
         }
@@ -1971,6 +1979,26 @@ mod tests {
 
                 // A list is what we want; it shows that the CSS was parsed
                 // into multiple tokens, so we do not check it further.
+                assert!(matches!(children[1], Syntax::List { .. }));
+            }
+            _ => {
+                panic!("Top level isn't a list");
+            }
+        };
+    }
+
+    /// Test that Astro with CSS inside a style element is parsed, instead
+    /// of being left as a single atom.
+    #[test]
+    fn test_subtrees_astro_style() {
+        let arena = Arena::new();
+        let config = from_language(guess::Language::Astro);
+        let res = parse(&arena, "<style>.a { color: red; }</style>", &config, false);
+
+        match res[0] {
+            Syntax::List { children, .. } => {
+                // <style>, content, </style>.
+                assert_eq!(children.len(), 3);
                 assert!(matches!(children[1], Syntax::List { .. }));
             }
             _ => {
