@@ -190,7 +190,7 @@ pub(crate) fn from_language(language: guess::Language) -> TreeSitterConfig {
                             "(attribute_interpolation (attribute_js_expr) @contents)",
                         )
                         .unwrap(),
-                        parse_as: TypeScript,
+                        parse_as: TypeScriptTsx,
                     },
                     TreeSitterSubLanguage {
                         query: ts::Query::new(
@@ -198,7 +198,7 @@ pub(crate) fn from_language(language: guess::Language) -> TreeSitterConfig {
                             "(html_interpolation (permissible_text) @contents)",
                         )
                         .unwrap(),
-                        parse_as: TypeScript,
+                        parse_as: TypeScriptTsx,
                     },
                     TreeSitterSubLanguage {
                         query: ts::Query::new(&language, "(script_element (raw_text) @contents)")
