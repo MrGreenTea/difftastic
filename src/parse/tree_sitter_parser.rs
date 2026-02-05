@@ -25,6 +25,15 @@ pub(crate) struct TreeSitterSubLanguage {
 
     /// What language parser to use (refers in turn to a TreeSitterConfig).
     parse_as: guess::Language,
+
+    /// How to adjust the captured node range before parsing it.
+    range_adjustment: SubLanguageRangeAdjustment,
+}
+
+#[derive(Clone, Copy)]
+enum SubLanguageRangeAdjustment {
+    None,
+    StripBraces,
 }
 
 /// Configuration for a tree-sitter parser.
@@ -183,6 +192,7 @@ pub(crate) fn from_language(language: guess::Language) -> TreeSitterConfig {
                         )
                         .unwrap(),
                         parse_as: TypeScript,
+                        range_adjustment: SubLanguageRangeAdjustment::None,
                     },
                     TreeSitterSubLanguage {
                         query: ts::Query::new(
@@ -191,24 +201,25 @@ pub(crate) fn from_language(language: guess::Language) -> TreeSitterConfig {
                         )
                         .unwrap(),
                         parse_as: TypeScriptTsx,
+                        range_adjustment: SubLanguageRangeAdjustment::None,
                     },
                     TreeSitterSubLanguage {
-                        query: ts::Query::new(
-                            &language,
-                            "(html_interpolation (permissible_text) @contents)",
-                        )
-                        .unwrap(),
+                        query: ts::Query::new(&language, "(html_interpolation) @contents")
+                            .unwrap(),
                         parse_as: TypeScriptTsx,
+                        range_adjustment: SubLanguageRangeAdjustment::StripBraces,
                     },
                     TreeSitterSubLanguage {
                         query: ts::Query::new(&language, "(script_element (raw_text) @contents)")
                             .unwrap(),
                         parse_as: TypeScript,
+                        range_adjustment: SubLanguageRangeAdjustment::None,
                     },
                     TreeSitterSubLanguage {
                         query: ts::Query::new(&language, "(style_element (raw_text) @contents)")
                             .unwrap(),
                         parse_as: Css,
+                        range_adjustment: SubLanguageRangeAdjustment::None,
                     },
                     TreeSitterSubLanguage {
                         query: ts::Query::new(
@@ -217,6 +228,7 @@ pub(crate) fn from_language(language: guess::Language) -> TreeSitterConfig {
                         )
                         .unwrap(),
                         parse_as: Scss,
+                        range_adjustment: SubLanguageRangeAdjustment::None,
                     },
                 ],
             }
@@ -593,11 +605,13 @@ pub(crate) fn from_language(language: guess::Language) -> TreeSitterConfig {
                         query: ts::Query::new(&language, "(style_element (raw_text) @contents)")
                             .unwrap(),
                         parse_as: Css,
+                        range_adjustment: SubLanguageRangeAdjustment::None,
                     },
                     TreeSitterSubLanguage {
                         query: ts::Query::new(&language, "(script_element (raw_text) @contents)")
                             .unwrap(),
                         parse_as: JavaScript,
+                        range_adjustment: SubLanguageRangeAdjustment::None,
                     },
                 ],
             }
@@ -780,6 +794,7 @@ pub(crate) fn from_language(language: guess::Language) -> TreeSitterConfig {
                     query: ts::Query::new(&language, "(shell_function (shell_command) @contents)")
                         .unwrap(),
                     parse_as: Bash,
+                    range_adjustment: SubLanguageRangeAdjustment::None,
                 }],
             }
         }
@@ -1105,11 +1120,13 @@ pub(crate) fn from_language(language: guess::Language) -> TreeSitterConfig {
                         query: ts::Query::new(&language, "(script_element (raw_text) @contents)")
                             .unwrap(),
                         parse_as: TypeScript,
+                        range_adjustment: SubLanguageRangeAdjustment::None,
                     },
                     TreeSitterSubLanguage {
                         query: ts::Query::new(&language, "(style_element (raw_text) @contents)")
                             .unwrap(),
                         parse_as: Css,
+                        range_adjustment: SubLanguageRangeAdjustment::None,
                     },
                     TreeSitterSubLanguage {
                         query: ts::Query::new(
@@ -1118,6 +1135,7 @@ pub(crate) fn from_language(language: guess::Language) -> TreeSitterConfig {
                         )
                         .unwrap(),
                         parse_as: JavaScript,
+                        range_adjustment: SubLanguageRangeAdjustment::None,
                     },
                 ],
             }
@@ -1290,6 +1308,55 @@ pub(crate) fn to_tree_with_limit(
     Ok((to_tree(lhs_src, config), to_tree(rhs_src, config)))
 }
 
+fn point_from_offset(line_positions: &LinePositions, offset: usize) -> ts::Point {
+    let span = line_positions.from_region(offset, offset)[0];
+    ts::Point {
+        row: span.line.0 as usize,
+        column: span.start_col as usize,
+    }
+}
+
+fn sublanguage_range(
+    src: &str,
+    node: ts::Node,
+    adjustment: SubLanguageRangeAdjustment,
+    line_positions: &LinePositions,
+) -> Option<ts::Range> {
+    if matches!(adjustment, SubLanguageRangeAdjustment::None) {
+        if node.byte_range().is_empty() {
+            return None;
+        }
+        return Some(node.range());
+    }
+
+    let mut start_byte = node.start_byte();
+    let mut end_byte = node.end_byte();
+    if end_byte <= start_byte {
+        return None;
+    }
+
+    if let SubLanguageRangeAdjustment::StripBraces = adjustment {
+        let bytes = src.as_bytes();
+        if bytes.get(start_byte) == Some(&b'{') {
+            start_byte += 1;
+        }
+        if end_byte > start_byte && bytes.get(end_byte - 1) == Some(&b'}') {
+            end_byte -= 1;
+        }
+    }
+
+    if end_byte <= start_byte {
+        return None;
+    }
+
+    Some(ts::Range {
+        start_byte,
+        end_byte,
+        start_point: point_from_offset(line_positions, start_byte),
+        end_point: point_from_offset(line_positions, end_byte),
+    })
+}
+
 /// Find any nodes that can be parsed as other languages (e.g. JavaScript embedded in HTML),
 /// and return a map of their node IDs mapped to parsed trees. Every time we see such a node,
 /// we will ignore it and recurse into the root node of the given tree instead.
@@ -1299,6 +1366,7 @@ pub(crate) fn parse_subtrees(
     tree: &tree_sitter::Tree,
 ) -> DftHashMap<usize, (tree_sitter::Tree, TreeSitterConfig, HighlightedNodeIds)> {
     let mut subtrees = DftHashMap::default();
+    let line_positions = LinePositions::from(src);
 
     for language in &config.sub_languages {
         let mut query_cursor = tree_sitter::QueryCursor::new();
@@ -1307,9 +1375,11 @@ pub(crate) fn parse_subtrees(
 
         while let Some(m) = query_matches.next() {
             let node = m.nodes_for_capture_index(0).next().unwrap();
-            if node.byte_range().is_empty() {
-                continue;
-            }
+            let range = match sublanguage_range(src, node, language.range_adjustment, &line_positions)
+            {
+                Some(range) => range,
+                None => continue,
+            };
 
             let subconfig = from_language(language.parse_as);
             let mut parser = ts::Parser::new();
@@ -1317,7 +1387,7 @@ pub(crate) fn parse_subtrees(
                 .set_language(&subconfig.language)
                 .expect("Incompatible tree-sitter version");
             parser
-                .set_included_ranges(&[node.range()])
+                .set_included_ranges(&[range])
                 .expect("Incompatible tree-sitter version");
 
             let tree = parser.parse(src, None).unwrap();
