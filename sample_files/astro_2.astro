@@ -4,56 +4,50 @@ let count = 1;
 
 type Entry = { label: string; value: number; badge?: string };
 const entries: Entry[] = [
-  { label: "Apples", value: 4, badge: "fresh" },
-  { label: "Pears", value: 3 },
-  { label: "Peaches", value: 5 },
+	{ label: "Apples", value: 4, badge: "fresh" },
+	{ label: "Pears", value: 3 },
+	{ label: "Peaches", value: 5 },
 ];
 ---
 
-<html>
-  <head>
-    <script>
-      const step = 3;
-      function bump(value) {
-        return value + step;
-      }
-    </script>
-    <style>
-      main {
-        color: #1e293b;
-        margin: 2rem auto;
-      }
-    </style>
-    <style>
-      .badge {
-        background: #fef3c7;
-        border-radius: 0.5rem;
-        color: #92400e;
-        font-size: 0.75rem;
-        margin-left: 0.5rem;
-        padding: 0.1rem 0.5rem;
-      }
+<script>
+  const step = 3;
+  function bump(value) {
+    return value + step;
+  }
+</script>
 
-      ul {
-        list-style: none;
-        padding: 0;
-      }
-    </style>
-  </head>
-  <body>
-    <main class={`page-${title.toLowerCase()}`}>
-      <h1>{title}</h1>
-      <ul>
-        {entries.map((entry) => (
-          <li>
-            {entry.label}: {entry.value}
-            {entry.badge && <span class="badge">{entry.badge}</span>}
-          </li>
-        ))}
-      </ul>
-      <button onclick={() => (count = bump(count))}>
-        Clicked {count} times
-      </button>
-    </main>
-  </body>
-</html>
+<main class={`page-${title.toLowerCase()}`}>
+  <h1>{title}</h1>
+  <ul>
+    {entries.map((entry) => (
+      <li>
+        {entry.label}: {entry.badge}
+        {entry.badge && <span class="badge">{entry.badge}</span>}
+      </li>
+    ))}
+  </ul>
+  <button onclick={() => (count = bump(count))}>
+    Clicked {count} times
+  </button>
+</main>
+
+<style>
+  main {
+    color: #1e293b;
+    margin: 2rem auto;
+  }
+  .badge {
+    background: #fef3c7;
+    border-radius: 0.5rem;
+    color: #92400e;
+    font-size: 0.75rem;
+    margin-left: 0.5rem;
+    padding: 0.1rem 0.5rem;
+  }
+
+  ul {
+    list-style: none;
+    padding: 0;
+  }
+</style>
