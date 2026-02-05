@@ -1,0 +1,1 @@
+../tree-sitter-astro/queries/highlights.scm

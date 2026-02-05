@@ -1,0 +1,44 @@
+---
+const title = "Counter";
+let count = 1;
+
+type Entry = { label: string; value: number; badge?: string };
+const entries: Entry[] = [
+  { label: "Apples", value: 4, badge: "fresh" },
+  { label: "Pears", value: 3 },
+  { label: "Peaches", value: 5 },
+];
+---
+
+<html>
+  <head>
+    <script>
+      const step = 3;
+      function bump(value) {
+        return value + step;
+      }
+    </script>
+    <style>
+      main {
+        color: #1e293b;
+        margin: 2rem auto;
+      }
+    </style>
+  </head>
+  <body>
+    <main class={`page-${title.toLowerCase()}`}>
+      <h1>{title}</h1>
+      <ul>
+        {entries.map((entry) => (
+          <li>
+            {entry.label}: {entry.value}
+            {entry.badge && <span class="badge">{entry.badge}</span>}
+          </li>
+        ))}
+      </ul>
+      <button onclick={() => (count = bump(count))}>
+        Clicked {count} times
+      </button>
+    </main>
+  </body>
+</html>

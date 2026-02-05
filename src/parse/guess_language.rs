@@ -20,6 +20,7 @@ use strum::{EnumIter, IntoEnumIterator};
 pub(crate) enum Language {
     Ada,
     Apex,
+    Astro,
     Bash,
     C,
     Clojure,
@@ -121,6 +122,7 @@ pub(crate) fn language_name(language: Language) -> &'static str {
     match language {
         Ada => "Ada",
         Apex => "Apex",
+        Astro => "Astro",
         Bash => "Bash",
         C => "C",
         Clojure => "Clojure",
@@ -195,6 +197,8 @@ use crate::lines::split_on_newlines;
 pub(crate) fn language_globs(language: Language) -> Vec<glob::Pattern> {
     let glob_strs: &'static [&'static str] = match language {
         Ada => &["*.ada", "*.adb", "*.ads"],
+        Apex => &["*.cls", "*.apexc", "*.trigger"],
+        Astro => &["*.astro"],
         Bash => &[
             "*.bash",
             "*.bats",
@@ -243,7 +247,6 @@ pub(crate) fn language_globs(language: Language) -> Vec<glob::Pattern> {
             "zshenv",
             "zshrc",
         ],
-        Apex => &["*.cls", "*.apexc", "*.trigger"],
         C => &["*.c"],
         Clojure => &[
             "*.bb", "*.boot", "*.clj", "*.cljc", "*.clje", "*.cljs", "*.cljx", "*.edn", "*.joke",

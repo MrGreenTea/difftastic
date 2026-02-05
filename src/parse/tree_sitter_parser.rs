@@ -71,6 +71,7 @@ pub(crate) struct TreeSitterConfig {
 extern "C" {
     fn tree_sitter_ada() -> ts::Language;
     fn tree_sitter_apex() -> ts::Language;
+    fn tree_sitter_astro() -> ts::Language;
     fn tree_sitter_clojure() -> ts::Language;
     fn tree_sitter_cmake() -> ts::Language;
     fn tree_sitter_dart() -> ts::Language;
@@ -150,6 +151,66 @@ pub(crate) fn from_language(language: guess::Language) -> TreeSitterConfig {
                 )
                 .unwrap(),
                 sub_languages: vec![],
+            }
+        }
+        Astro => {
+            let language = unsafe { tree_sitter_astro() };
+            TreeSitterConfig {
+                language: language.clone(),
+                atom_nodes: [
+                    "doctype",
+                    "frontmatter_js_block",
+                    "quoted_attribute_value",
+                    "raw_text",
+                    "tag_name",
+                    "text",
+                ]
+                .into_iter()
+                .collect(),
+                delimiter_tokens: vec![("<", ">"), ("<!", ">"), ("<!--", "-->")]
+                    .into_iter()
+                    .collect(),
+                highlight_query: ts::Query::new(
+                    &language,
+                    include_str!("../../vendored_parsers/highlights/astro.scm"),
+                )
+                .unwrap(),
+                sub_languages: vec![
+                    TreeSitterSubLanguage {
+                        query: ts::Query::new(
+                            &language,
+                            "(frontmatter (frontmatter_js_block) @contents)",
+                        )
+                        .unwrap(),
+                        parse_as: TypeScript,
+                    },
+                    TreeSitterSubLanguage {
+                        query: ts::Query::new(
+                            &language,
+                            "(attribute_interpolation (attribute_js_expr) @contents)",
+                        )
+                        .unwrap(),
+                        parse_as: TypeScript,
+                    },
+                    TreeSitterSubLanguage {
+                        query: ts::Query::new(
+                            &language,
+                            "(html_interpolation (permissible_text) @contents)",
+                        )
+                        .unwrap(),
+                        parse_as: TypeScript,
+                    },
+                    TreeSitterSubLanguage {
+                        query: ts::Query::new(&language, "(script_element (raw_text) @contents)")
+                            .unwrap(),
+                        parse_as: TypeScript,
+                    },
+                    TreeSitterSubLanguage {
+                        query: ts::Query::new(&language, "(style_element (raw_text) @contents)")
+                            .unwrap(),
+                        parse_as: Css,
+                    },
+                ],
             }
         }
         Bash => {

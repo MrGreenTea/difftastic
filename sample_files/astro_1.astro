@@ -1,0 +1,41 @@
+---
+const title = "Counter";
+let count = 0;
+
+type Entry = { label: string; value: number };
+const entries: Entry[] = [
+  { label: "Apples", value: 2 },
+  { label: "Pears", value: 3 },
+];
+---
+
+<html>
+  <head>
+    <script>
+      const step = 2;
+      function bump(value) {
+        return value + step;
+      }
+    </script>
+    <style>
+      main {
+        color: #334155;
+      }
+    </style>
+  </head>
+  <body>
+    <main class={title.toLowerCase()}>
+      <h1>{title}</h1>
+      <ul>
+        {entries.map((entry) => (
+          <li>
+            {entry.label}: {entry.value}
+          </li>
+        ))}
+      </ul>
+      <button onclick={() => (count = count + 1)}>
+        Clicked {count} times
+      </button>
+    </main>
+  </body>
+</html>

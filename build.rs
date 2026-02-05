@@ -73,6 +73,11 @@ fn main() {
             extra_files: vec![],
         },
         TreeSitterParser {
+            name: "tree-sitter-astro",
+            src_dir: "vendored_parsers/tree-sitter-astro-src",
+            extra_files: vec!["scanner.c"],
+        },
+        TreeSitterParser {
             name: "tree-sitter-clojure",
             src_dir: "vendored_parsers/tree-sitter-clojure-src",
             extra_files: vec![],
