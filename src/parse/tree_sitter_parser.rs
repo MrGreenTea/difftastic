@@ -34,6 +34,7 @@ pub(crate) struct TreeSitterSubLanguage {
 enum SubLanguageRangeAdjustment {
     None,
     StripBraces,
+    StripBackticks,
 }
 
 /// Configuration for a tree-sitter parser.
@@ -1178,7 +1179,15 @@ pub(crate) fn from_language(language: guess::Language) -> TreeSitterConfig {
                 atom_nodes: ["string", "template_string"].into_iter().collect(),
                 delimiter_tokens: vec![("{", "}"), ("(", ")"), ("[", "]"), ("<", ">")],
                 highlight_query: ts::Query::new(&language, &highlight_query).unwrap(),
-                sub_languages: vec![],
+                sub_languages: vec![TreeSitterSubLanguage {
+                    query: ts::Query::new(
+                        &language,
+                        "(call_expression (identifier) @_tag (template_string) @contents (#eq? @_tag \"sql\"))",
+                    )
+                    .unwrap(),
+                    parse_as: Sql,
+                    range_adjustment: SubLanguageRangeAdjustment::StripBackticks,
+                }],
             }
         }
         TypeScript => {
@@ -1195,7 +1204,15 @@ pub(crate) fn from_language(language: guess::Language) -> TreeSitterConfig {
                     .collect(),
                 delimiter_tokens: vec![("{", "}"), ("(", ")"), ("[", "]"), ("<", ">")],
                 highlight_query: ts::Query::new(&language, &highlight_query).unwrap(),
-                sub_languages: vec![],
+                sub_languages: vec![TreeSitterSubLanguage {
+                    query: ts::Query::new(
+                        &language,
+                        "(call_expression (identifier) @_tag (template_string) @contents (#eq? @_tag \"sql\"))",
+                    )
+                    .unwrap(),
+                    parse_as: Sql,
+                    range_adjustment: SubLanguageRangeAdjustment::StripBackticks,
+                }],
             }
         }
         Xml => {
@@ -1335,13 +1352,24 @@ fn sublanguage_range(
         return None;
     }
 
-    if let SubLanguageRangeAdjustment::StripBraces = adjustment {
-        let bytes = src.as_bytes();
-        if bytes.get(start_byte) == Some(&b'{') {
-            start_byte += 1;
+    let bytes = src.as_bytes();
+    match adjustment {
+        SubLanguageRangeAdjustment::None => unreachable!(),
+        SubLanguageRangeAdjustment::StripBraces => {
+            if bytes.get(start_byte) == Some(&b'{') {
+                start_byte += 1;
+            }
+            if end_byte > start_byte && bytes.get(end_byte - 1) == Some(&b'}') {
+                end_byte -= 1;
+            }
         }
-        if end_byte > start_byte && bytes.get(end_byte - 1) == Some(&b'}') {
-            end_byte -= 1;
+        SubLanguageRangeAdjustment::StripBackticks => {
+            if bytes.get(start_byte) == Some(&b'`') {
+                start_byte += 1;
+            }
+            if end_byte > start_byte && bytes.get(end_byte - 1) == Some(&b'`') {
+                end_byte -= 1;
+            }
         }
     }
 
@@ -1369,12 +1397,19 @@ pub(crate) fn parse_subtrees(
     let line_positions = LinePositions::from(src);
 
     for language in &config.sub_languages {
+        let capture_index = language
+            .query
+            .capture_names()
+            .iter()
+            .position(|name| *name == "contents")
+            .unwrap_or(0) as u32;
+
         let mut query_cursor = tree_sitter::QueryCursor::new();
         let mut query_matches =
             query_cursor.matches(&language.query, tree.root_node(), src.as_bytes());
 
         while let Some(m) = query_matches.next() {
-            let node = m.nodes_for_capture_index(0).next().unwrap();
+            let node = m.nodes_for_capture_index(capture_index).next().unwrap();
             let range = match sublanguage_range(src, node, language.range_adjustment, &line_positions)
             {
                 Some(range) => range,
@@ -2075,6 +2110,20 @@ mod tests {
                 panic!("Top level isn't a list");
             }
         };
+    }
+
+    #[test]
+    fn test_subtrees_typescript_sql_tagged_template() {
+        let arena = Arena::new();
+        let config = from_language(guess::Language::TypeScript);
+        let res = parse(&arena, "const query = sql`select * from users`;", &config, false);
+
+        match res[0] {
+            Syntax::List { children, .. } => {
+                assert!(children.iter().any(|child| matches!(child, Syntax::List { .. })));
+            }
+            _ => panic!("Top level isn't a list"),
+        }
     }
 
     /// Ensure that we don't crash when loading any of the
